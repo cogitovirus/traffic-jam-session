@@ -1,0 +1,22 @@
+{
+  "name": "traffic-jam-session",
+  "version": "1.0.0",
+  "description": "Redis locks for multithreaded app",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "node app.js"
+  },
+  "keywords": [
+    "redis",
+    "mutex",
+    "locks",
+    "concurrency"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "redis": "^4.6.0"
+  }
+}
