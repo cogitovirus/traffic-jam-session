@@ -10,14 +10,27 @@ app.use(express.json());
 // Redis client
 let redisClient;
 
-// Initialize Redis connection
+// Initialize Redis connection with retry logic
 async function initRedis() {
   redisClient = createClient({
-    url: REDIS_URL
+    url: REDIS_URL,
+    socket: {
+      reconnectStrategy: (retries) => {
+        if (retries > 10) {
+          console.error('Max Redis reconnection attempts reached');
+          return new Error('Max reconnection attempts reached');
+        }
+        const delay = Math.min(retries * 100, 3000);
+        console.log(`Reconnecting to Redis in ${delay}ms...`);
+        return delay;
+      }
+    }
   });
 
   redisClient.on('error', (err) => console.error('Redis Client Error', err));
   redisClient.on('connect', () => console.log('Redis Client Connected'));
+  redisClient.on('reconnecting', () => console.log('Redis Client Reconnecting...'));
+  redisClient.on('ready', () => console.log('Redis Client Ready'));
 
   await redisClient.connect();
 }
@@ -142,11 +155,17 @@ class MutexManager {
         // Release all user locks acquired so far
         for (const lockedUserId of lockedUsers) {
           const userLockKey = this.getUserLockKey(lockedUserId);
-          await this.releaseLock(userLockKey, processId);
+          const released = await this.releaseLock(userLockKey, processId);
+          if (!released) {
+            console.error(`Warning: Failed to release lock for user ${lockedUserId} during rollback`);
+          }
         }
         
         // Release company lock
-        await this.releaseLock(companyLockKey, processId);
+        const companyReleased = await this.releaseLock(companyLockKey, processId);
+        if (!companyReleased) {
+          console.error(`Warning: Failed to release company lock for ${companyId} during rollback`);
+        }
         
         return { 
           success: false, 
@@ -227,7 +246,11 @@ let mutexManager;
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', redis: redisClient?.isReady ? 'connected' : 'disconnected' });
+  const redisConnected = redisClient && redisClient.isReady;
+  res.json({ 
+    status: 'ok', 
+    redis: redisConnected ? 'connected' : 'disconnected' 
+  });
 });
 
 // Lock a user
