@@ -58,6 +58,20 @@ docker-compose logs -f app
 docker-compose logs -f redis
 ```
 
+### Test the API
+
+After starting the services, you can use the included test script:
+
+```bash
+# Make sure jq is installed for JSON formatting
+# sudo apt-get install jq  # On Ubuntu/Debian
+# brew install jq          # On macOS
+
+./test-api.sh
+```
+
+Or test manually with curl (see examples below).
+
 ## API Endpoints
 
 ### Health Check
