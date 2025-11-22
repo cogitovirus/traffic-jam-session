@@ -58,16 +58,23 @@ class MutexManager {
     }
   }
 
-  // Release lock
+  // Release lock (atomic check-and-delete using Lua script)
   async releaseLock(lockKey, processId) {
     try {
-      // Only release if the lock is held by this process
-      const currentHolder = await this.redis.get(lockKey);
-      if (currentHolder === processId) {
-        await this.redis.del(lockKey);
-        return true;
-      }
-      return false;
+      // Use Lua script to atomically check and delete
+      // Returns 1 if deleted, 0 if not owned by this process
+      const luaScript = `
+        if redis.call("get", KEYS[1]) == ARGV[1] then
+          return redis.call("del", KEYS[1])
+        else
+          return 0
+        end
+      `;
+      const result = await this.redis.eval(luaScript, {
+        keys: [lockKey],
+        arguments: [processId]
+      });
+      return result === 1;
     } catch (error) {
       console.error(`Error releasing lock for ${lockKey}:`, error);
       return false;
@@ -107,7 +114,7 @@ class MutexManager {
     return await this.releaseLock(lockKey, processId);
   }
 
-  // Lock entire company (locks all users in the company)
+  // Lock entire company (locks all users in the company with rollback on failure)
   async lockCompany(companyId, userIds, processId, ttl) {
     const companyLockKey = this.getCompanyLockKey(companyId);
     
@@ -117,12 +124,36 @@ class MutexManager {
       return { success: false, message: 'Company already locked' };
     }
 
-    // Lock all users in the company
+    // Try to lock all users
     const userLocks = [];
+    const lockedUsers = [];
+    
     for (const userId of userIds) {
       const userLockKey = this.getUserLockKey(userId);
       const locked = await this.acquireLock(userLockKey, processId, ttl);
       userLocks.push({ userId, locked });
+      
+      if (locked) {
+        lockedUsers.push(userId);
+      } else {
+        // Rollback: release all locks acquired so far
+        console.error(`Failed to lock user ${userId}, rolling back...`);
+        
+        // Release all user locks acquired so far
+        for (const lockedUserId of lockedUsers) {
+          const userLockKey = this.getUserLockKey(lockedUserId);
+          await this.releaseLock(userLockKey, processId);
+        }
+        
+        // Release company lock
+        await this.releaseLock(companyLockKey, processId);
+        
+        return { 
+          success: false, 
+          message: `Failed to lock user ${userId}, all locks rolled back`,
+          failedUser: userId
+        };
+      }
     }
 
     return { 
