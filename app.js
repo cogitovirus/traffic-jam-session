@@ -79,9 +79,10 @@ class MutexManager {
   async releaseLock(lockKey, processId) {
     try {
       // Use Lua script to atomically check and delete
-      // Returns 1 if deleted, 0 if not owned by this process
+      // Returns 1 if deleted, 0 if not owned by this process or doesn't exist
       const luaScript = `
-        if redis.call("get", KEYS[1]) == ARGV[1] then
+        local current = redis.call("get", KEYS[1])
+        if current == ARGV[1] then
           return redis.call("del", KEYS[1])
         else
           return 0
