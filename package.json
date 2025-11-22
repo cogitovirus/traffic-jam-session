@@ -1,0 +1,23 @@
+{
+  "name": "traffic-jam-session",
+  "version": "1.0.0",
+  "description": "Redis locks for multithreaded app",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cogitovirus/traffic-jam-session.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/cogitovirus/traffic-jam-session/issues"
+  },
+  "homepage": "https://github.com/cogitovirus/traffic-jam-session#readme",
+  "dependencies": {
+    "redis": "^5.10.0"
+  }
+}
