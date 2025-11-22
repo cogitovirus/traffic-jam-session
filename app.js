@@ -82,7 +82,7 @@ class MutexManager {
       // Returns 1 if deleted, 0 if not owned by this process or doesn't exist
       const luaScript = `
         local current = redis.call("get", KEYS[1])
-        if current == ARGV[1] then
+        if current and current == ARGV[1] then
           return redis.call("del", KEYS[1])
         else
           return 0
