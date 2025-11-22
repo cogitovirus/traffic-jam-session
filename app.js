@@ -4,6 +4,10 @@ const { createClient } = require('redis');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const REDIS_URL = process.env.REDIS_URL || 'redis://redis:6379';
+const DEFAULT_LOCK_TTL = parseInt(process.env.DEFAULT_LOCK_TTL || '30', 10); // seconds
+const REDIS_RETRY_BASE_DELAY = 100; // milliseconds
+const REDIS_RETRY_MAX_DELAY = 3000; // milliseconds
+const REDIS_MAX_RETRIES = 10;
 
 app.use(express.json());
 
@@ -16,11 +20,11 @@ async function initRedis() {
     url: REDIS_URL,
     socket: {
       reconnectStrategy: (retries) => {
-        if (retries > 10) {
+        if (retries > REDIS_MAX_RETRIES) {
           console.error('Max Redis reconnection attempts reached');
           return new Error('Max reconnection attempts reached');
         }
-        const delay = Math.min(retries * 100, 3000);
+        const delay = Math.min(retries * REDIS_RETRY_BASE_DELAY, REDIS_RETRY_MAX_DELAY);
         console.log(`Reconnecting to Redis in ${delay}ms...`);
         return delay;
       }
@@ -40,7 +44,7 @@ class MutexManager {
   constructor(redisClient) {
     this.redis = redisClient;
     this.lockPrefix = 'lock:';
-    this.defaultTTL = 30; // 30 seconds default TTL
+    this.defaultTTL = DEFAULT_LOCK_TTL;
   }
 
   // Generate lock keys

@@ -63,10 +63,14 @@ docker-compose logs -f redis
 After starting the services, you can use the included test script:
 
 ```bash
+# Make the script executable (first time only)
+chmod +x test-api.sh
+
 # Make sure jq is installed for JSON formatting
 # sudo apt-get install jq  # On Ubuntu/Debian
 # brew install jq          # On macOS
 
+# Run the test script
 ./test-api.sh
 ```
 
@@ -247,6 +251,9 @@ curl -X POST http://localhost:3000/unlock/contract/contract-555 \
 
 - `PORT`: Application port (default: 3000)
 - `REDIS_URL`: Redis connection URL (default: redis://redis:6379)
+- `DEFAULT_LOCK_TTL`: Default lock time-to-live in seconds (default: 30)
+
+You can override these in docker-compose.yml or when running locally.
 
 ## Lock Behavior
 
